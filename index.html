@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סימולטור TURBT חינוכי ומורחב</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Varela+Round&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Varela Round', sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        header {
+            background-color: #4a90e2;
+            color: white;
+            width: 100%;
+            text-align: center;
+            padding: 10px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; }
+
+        #game-container {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            max-width: 800px;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+        }
+
+        canvas {
+            touch-action: none;
+            cursor: crosshair;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 15;
+        }
+
+        .instruction-box {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 8px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-size: 1rem;
+            color: #2c3e50;
+            border: 2px solid #4a90e2;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+
+        .demo-badge {
+            background-color: #e67e22;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Controls Bottom Bar */
+        #controls-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            pointer-events: none; /* Let clicks pass through empty spaces */
+            z-index: 15;
+        }
+
+        .game-btn {
+            pointer-events: auto;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            font-family: 'Varela Round', sans-serif;
+            transition: transform 0.1s, background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .game-btn:active { transform: scale(0.95); }
+        
+        #btn-coag { background-color: #f39c12; } 
+        #btn-back { background-color: #95a5a6; }
+        #btn-skip { background-color: #34495e; font-size: 0.9rem; padding: 10px 20px; }
+
+        /* Start/Info Screens */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(240, 248, 255, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .content-card {
+            max-width: 500px;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        /* Special style for instrument screen to allow seeing canvas behind */
+        #instrument-screen {
+            background: rgba(240, 248, 255, 0.1); /* Mostly transparent */
+            justify-content: flex-end; /* Align card to bottom */
+            align-items: flex-end; /* Changed to flex-end (Left side in RTL) */
+            padding: 20px; /* Padding from edges */
+        }
+        
+        #instrument-screen .content-card {
+            background: rgba(255, 255, 255, 0.95);
+            max-width: 280px; /* Even smaller width */
+            padding: 15px; /* More compact */
+            box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+            margin: 0; 
+            border: 1px solid #ddd;
+            font-size: 0.9rem; /* Smaller text base */
+        }
+        
+        #instrument-screen h3 {
+            font-size: 1.1rem;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            background: #eef;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #444;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Heat Bar */
+        #heat-container {
+            width: 200px;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #999;
+            margin-top: 5px;
+        }
+        #heat-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f1c40f, #e74c3c);
+            transition: width 0.1s linear;
+        }
+
+    </style>
+</head>
+<body>
+
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui-layer">
+            <div id="demo-indicator" class="demo-badge hidden">מצב הדגמה (אוטומטי)</div>
+            <div id="instruction-text" class="instruction-box hidden">ברוכים הבאים</div>
+            
+            <!-- Heat Indicator (Only visible in resection) -->
+            <div id="heat-wrapper" class="hidden instruction-box" style="flex-direction:column; padding: 10px;">
+                <div id="heat-text" style="font-size: 0.9rem; margin-bottom: 5px;">חום הלולאה (לחץ והחזק בכל מקום)</div>
+                <div id="heat-container"><div id="heat-fill"></div></div>
+            </div>
+        </div>
+
+        <div id="controls-bar">
+            <!-- Left side controls -->
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-back" class="game-btn hidden" onclick="goBack()">חזור</button>
+            </div>
+            
+            <!-- Center/Right controls -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button id="btn-skip" class="game-btn hidden" onclick="endDemo()">דלג למשחק >></button>
+                <button id="btn-coag" class="game-btn hidden" onclick="doCoagulation()">
+                    <span>💧</span> שטיפה/צריבה
+                </button>
+            </div>
+        </div>
+
+        <!-- SCREEN 1: INTRO -->
+        <div id="start-screen" class="overlay-screen">
+            <div class="content-card">
+                <h2>ברוכים הבאים</h2>
+                    <p>משחק זה מדמה ומסביר בצורה פשוטה את ההליך הרפואי שאתם הולכים לעבור להסרת פוליפ ממערכת השתן.</p>
+
+                <button class="game-btn" style="background:#4a90e2; width:100%; justify-content:center; margin-top:20px;" onclick="goToInstrumentScreen()">המשך</button>
+            </div>
+        </div>
+
+        <!-- SCREEN 1.2: INSTRUMENT SHOWCASE -->
+        <div id="instrument-screen" class="overlay-screen hidden">
+            <!-- Canvas draws instrument behind this -->
+            <div class="content-card">
+                <h3>הכירו את הציסטוסקופ</h3>
+              <p>זהו המכשיר שבו ישתמש הרופא. בקצה המכשיר מצלמה ולולאת חיתוך בעזרתם הרופא יאתר את הפוליפ בדרכי השתן ויסיר אותו.</p>
+                <button class="game-btn" style="background:#4a90e2; width:100%; justify-content:center;" onclick="startDemo()">התחל הדגמה</button>
+            </div>
+        </div>
+
+        <!-- SCREEN 1.5: INTERMISSION -->
+        <div id="intermission-screen" class="overlay-screen hidden">
+            <div class="content-card">
+                <h2>ההדגמה הסתיימה</h2>
+                <p>כעת תורכם לבצע את ההליך.</p>
+                <ul style="text-align: right; margin-bottom: 20px;">
+                    <li>החדירו את הציסטוסקופ .</li>
+                    <li>נווטו לשלפוחית.</li>
+                    <li>הסירו את הפוליפ מלמטה למעלה.</li>
+                    <li><strong>לחצו והחזיקו</strong> בכל מקום במסך לחימום הלולאה.</li>
+                </ul>
+                <button class="game-btn" style="background:#27ae60; width:100%; justify-content:center;" onclick="startRealGame()">אני מוכן! התחל משחק</button>
+            </div>
+        </div>
+
+        <!-- SCREEN 5: POST OP -->
+        <div id="end-screen" class="overlay-screen hidden">
+            <div class="content-card">
+                <h2 style="color: #27ae60;">ההליך הושלם בהצלחה!</h2>
+                <p>הפוליפ הוסר.</p>
+                
+                <div style="text-align: right; background: #f9f9f9; padding: 15px; border-radius: 10px; margin-top: 15px;">
+                    <h3 style="margin-top:0; font-size:1.1rem; color:#c0392b;">תופעות לוואי שכיחות (יממה-יומיים):</h3>
+                    <ul style="padding-right: 20px; font-size: 0.95rem;">
+                        <li>צריבה או כאב קל בעת הטלת שתן.</li>
+                        <li>תכיפות במתן שתן או תחושת דחיפות.</li>
+                        <li>דם בהיר בשתן (שתן דמי) בכמות קטנה.</li>
+                    </ul>
+                </div>
+                
+                <button class="game-btn" style="background:#4a90e2; margin-top:20px; width:100%; justify-content:center;" onclick="location.reload()">התחל מחדש</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /** SETUP & CONSTANTS **/
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const instructionText = document.getElementById('instruction-text');
+        const demoIndicator = document.getElementById('demo-indicator');
+        const heatWrapper = document.getElementById('heat-wrapper');
+        const heatText = document.getElementById('heat-text'); 
+        const heatFill = document.getElementById('heat-fill');
+        const btnCoag = document.getElementById('btn-coag');
+        const btnBack = document.getElementById('btn-back');
+        const btnSkip = document.getElementById('btn-skip');
+
+        // Game States
+        let gameState = 'INTRO';
+        let isDemo = false;
+        let width, height;
+        
+        // Sim Mouse for Demo
+        const simMouse = { x: 0, y: 0, isDown: false };
+        // Real Mouse
+        const mouse = { x: 0, y: 0, isDown: false };
+        let lastMouseY = 0;
+        
+        // Heating State (Keyboard Spacebar support still active)
+        let isSpacebarHeating = false;
+
+        // --- PHASE VARIABLES ---
+        let extScopeX = 140; 
+        let extScopeY = 0; 
+        let extProgress = 0;
+
+        let intScopeY = 0;
+        let intScopeX = 0;
+        let intProgress = 0;
+
+        let tumorParticles = [];
+        let floatingChips = [];
+        let particlesRemoved = 0;
+        let totalParticles = 0;
+        let visibility = 1.0; 
+        let bloodParticles = [];
+        let loopHeat = 0; 
+        let toolReady = false; 
+        
+        let halfwayEventTriggered = false;
+
+        // Demo Timer
+        let demoPhaseTime = 0;
+        
+        // Colors
+        const C_BG = '#f0f8ff';
+        const C_SKIN = '#ffe0bd';
+        const C_SKIN_DARK = '#ffcd94';
+        const C_TISSUE_LIGHT = '#ffebee';
+        const C_TISSUE_DARK = '#ef9a9a';
+        const C_TUMOR = '#ffab91'; 
+        const C_TUMOR_DARK = '#d84315';
+        const C_METAL = '#95a5a6';
+
+        function resize() {
+            const container = document.getElementById('game-container');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (gameState.includes('EXTERNAL')) extScopeY = height * 0.6;
+        }
+        window.addEventListener('resize', resize);
+
+        // --- INPUT HANDLING ---
+
+        window.addEventListener('keydown', (e) => {
+            if(e.code === 'Space' && !e.repeat) isSpacebarHeating = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            if(e.code === 'Space') isSpacebarHeating = false;
+        });
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.targetTouches && e.targetTouches.length > 0) {
+                clientX = e.targetTouches[0].clientX;
+                clientY = e.targetTouches[0].clientY;
+            } else if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        ['mousedown', 'touchstart'].forEach(e => canvas.addEventListener(e, (ev) => {
+            if(isDemo && gameState !== 'SHOW_INSTRUMENT') return; 
+            mouse.isDown = true;
+            const p = getPos(ev);
+            mouse.x = p.x; mouse.y = p.y;
+            lastMouseY = p.y;
+        }));
+        ['mousemove', 'touchmove'].forEach(e => canvas.addEventListener(e, (ev) => {
+            if(isDemo && gameState !== 'SHOW_INSTRUMENT') return;
+            const p = getPos(ev);
+            lastMouseY = mouse.y; 
+            mouse.x = p.x; mouse.y = p.y;
+            ev.preventDefault();
+        }));
+        ['mouseup', 'touchend'].forEach(e => canvas.addEventListener(e, () => {
+            if(isDemo && gameState !== 'SHOW_INSTRUMENT') return;
+            mouse.isDown = false;
+        }));
+
+
+        /** GAME FLOW CONTROL **/
+
+        function goToInstrumentScreen() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('instrument-screen').classList.remove('hidden');
+            gameState = 'SHOW_INSTRUMENT';
+            loop();
+        }
+
+        function startDemo() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('instrument-screen').classList.add('hidden');
+            isDemo = true;
+            demoIndicator.classList.remove('hidden');
+            btnSkip.classList.remove('hidden');
+            instructionText.classList.remove('hidden');
+            setPhase('DEMO_EXTERNAL');
+            loop();
+        }
+
+        function endDemo() {
+            isDemo = false;
+            demoIndicator.classList.add('hidden');
+            btnSkip.classList.add('hidden');
+            document.getElementById('intermission-screen').classList.remove('hidden');
+            gameState = 'INTERMISSION';
+        }
+
+        function startRealGame() {
+            document.getElementById('intermission-screen').classList.add('hidden');
+            resetGameVariables();
+            setPhase('EXTERNAL');
+            loop();
+        }
+
+        function resetGameVariables() {
+            extScopeX = 140; 
+            extProgress = 0;
+            intScopeY = height;
+            intScopeX = width/2;
+            intProgress = 0;
+            visibility = 1.0;
+            loopHeat = 0;
+            toolReady = false;
+            mouse.isDown = false;
+            isSpacebarHeating = false;
+            floatingChips = []; 
+            halfwayEventTriggered = false;
+        }
+
+        function setPhase(phase) {
+            gameState = phase;
+            demoPhaseTime = Date.now();
+            
+            btnBack.classList.add('hidden');
+            btnCoag.classList.add('hidden');
+            heatWrapper.classList.add('hidden');
+
+            if (phase === 'EXTERNAL' || phase === 'DEMO_EXTERNAL') {
+                instructionText.innerText = isDemo ? 
+                    "הדגמה: החדרת הציסטוסקופ - צינור דק עם סיב אופטי - דרך פתח השופכה." : 
+                    "שלב 1: גרור את קצה הצינורית משמאל אל פתח השופכה";
+                extScopeX = 140;
+                extScopeY = height - 180;
+                if(!isDemo) btnBack.classList.add('hidden');
+            }
+            else if (phase === 'INTERNAL' || phase === 'DEMO_INTERNAL') {
+                instructionText.innerText = isDemo ? 
+                    "הדגמה: מעבר בדרכי השתן. המכשיר נע בזהירות בתוך השופכה עד להגעה לשלפוחית השתן." : 
+                    "שלב 2: נווט בתוך השופכה עד לשלפוחית";
+                if (intScopeY === 0) { intScopeY = height; intScopeX = width/2; }
+                if(!isDemo) btnBack.classList.remove('hidden');
+            }
+            else if (phase === 'RESECTION' || phase === 'DEMO_RESECTION') {
+                instructionText.innerText = isDemo ? 
+                    "הרופא משתמש בלולאה מתחממת הנמצאת בקצה המכשיר כדי לגרד את הפוליפ מדופן האיבר" : 
+                    "שלב 3: חתוך את הפוליפ. השתמש בשטיפה כדי לשאוב שבבים שמסתירים את הראייה.";
+                setupTumor();
+                if(isDemo) {
+                     toolReady = true;
+                     heatText.style.display = 'none'; 
+                } else {
+                     toolReady = false;
+                     btnCoag.classList.remove('hidden');
+                     btnBack.classList.remove('hidden');
+                     heatText.style.display = 'block'; 
+                }
+                heatWrapper.classList.remove('hidden');
+            }
+            else if (phase === 'POSTOP') {
+                document.getElementById('end-screen').classList.remove('hidden');
+                btnBack.classList.add('hidden');
+            }
+        }
+
+        function goBack() {
+            if(gameState === 'INTERNAL') setPhase('EXTERNAL');
+            else if(gameState === 'RESECTION') setPhase('INTERNAL');
+        }
+
+        function doCoagulation() {
+            if(gameState === 'RESECTION') {
+                visibility = 1.0; 
+                bloodParticles = [];
+                floatingChips = []; 
+                if(!isDemo && toolReady) {
+                     instructionText.innerText = "שלב 3: חתוך את הפוליפ. השתמש בשטיפה כדי לשאוב שבבים שמסתירים את הראייה.";
+                }
+            }
+        }
+
+        /** DEMO AI UPDATE **/
+        function updateDemoAI() {
+            const timeInPhase = Date.now() - demoPhaseTime;
+
+            if (gameState === 'DEMO_EXTERNAL') {
+                const targetX = width/2;
+                const targetY = (height * 0.3) + 60; 
+                // Slower movement (was 0.008)
+                extScopeX += (targetX - extScopeX) * 0.004;
+                extScopeY += (targetY - extScopeY) * 0.004;
+
+                if (Math.hypot(extScopeX - targetX, extScopeY - targetY) < 40) {
+                     setPhase('DEMO_INTERNAL');
+                }
+            }
+            else if (gameState === 'DEMO_INTERNAL') {
+                // Slower movement (was 0.08)
+                intScopeY = height - (timeInPhase * 0.04); 
+                intScopeX = (width/2) + Math.sin(timeInPhase * 0.003) * 30; 
+                if (intScopeY < 120) {
+                    setPhase('DEMO_RESECTION');
+                }
+            }
+            else if (gameState === 'DEMO_RESECTION') {
+                let targetP = null;
+                let maxY = -Infinity;
+                tumorParticles.forEach(p => {
+                    if (p.active && p.y > maxY) {
+                        maxY = p.y;
+                        targetP = p;
+                    }
+                });
+
+                // Increased timeout to allow for slower demo (was 45000)
+                if (!targetP || timeInPhase > 60000) { 
+                    endDemo();
+                    return;
+                }
+
+                // Slower approach speed (was 0.03)
+                const approachSpeed = 0.015;
+                let targetYOffset = 15; 
+                const dist = Math.hypot(targetP.x - simMouse.x, targetP.y - simMouse.y);
+                
+                if (dist < 35) {
+                    simMouse.isDown = true; 
+                    if (loopHeat > 85) {
+                         // Slower pulling action (was 1.5)
+                         simMouse.y += 0.8; 
+                    } else {
+                         simMouse.x += (targetP.x - simMouse.x) * approachSpeed;
+                         simMouse.y += ((targetP.y + targetYOffset) - simMouse.y) * approachSpeed;
+                    }
+                } else {
+                    simMouse.isDown = false;
+                    simMouse.x += (targetP.x - simMouse.x) * approachSpeed;
+                    simMouse.y += ((targetP.y + targetYOffset) - simMouse.y) * approachSpeed;
+                }
+                
+                // AI cleanup: Only check visibility now (removed floatingChips check)
+                if (visibility < 0.6) {
+                    doCoagulation();
+                }
+            }
+        }
+
+        /** LOGIC & HELPERS **/
+
+        function setupTumor() {
+            tumorParticles = [];
+            // Removed floatingChips reset
+            bloodParticles = [];
+            particlesRemoved = 0;
+            const cx = width / 2;
+            const cy = height / 2;
+            const rows = 5;
+            const cols = 6;
+            
+            for(let r = 0; r < rows; r++) {
+                for(let c = 0; c < cols; c++) {
+                    let ox = (Math.random() - 0.5) * 20;
+                    let oy = (Math.random() - 0.5) * 10;
+                    let px = cx + (c - cols/2) * 25 + ox;
+                    let py = cy - 50 + (r * 20) + oy; 
+                    tumorParticles.push({
+                        x: px, y: py,
+                        r: 12 + Math.random()*5,
+                        active: true,
+                        row: r,
+                        id: r*cols + c
+                    });
+                }
+            }
+            totalParticles = tumorParticles.length;
+        }
+
+        // --- DRAWING ---
+
+        function drawInstrumentShowcase() {
+            ctx.fillStyle = "#e0f7fa";
+            ctx.fillRect(0, 0, width, height);
+
+            // --- 1. Draw Anatomy Diagram ---
+            const anatX = width * 0.85; 
+            const anatY = height * 0.25; 
+            const anatScale = 0.7; 
+
+            ctx.save();
+            ctx.translate(anatX, anatY);
+            ctx.scale(anatScale, anatScale);
+
+            // Kidneys
+            ctx.fillStyle = "#c0392b"; 
+            ctx.beginPath(); ctx.ellipse(-60, -80, 20, 35, -0.2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(60, -80, 20, 35, 0.2, 0, Math.PI*2); ctx.fill();
+
+            // Ureters
+            ctx.strokeStyle = "#e6b0aa";
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(-50, -60); ctx.quadraticCurveTo(-20, 0, -15, 40); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(50, -60); ctx.quadraticCurveTo(20, 0, 15, 40); ctx.stroke();
+
+            // Bladder
+            ctx.fillStyle = "#f5b7b1"; 
+            ctx.beginPath();
+            ctx.moveTo(-35, 30);
+            ctx.bezierCurveTo(-50, 80, -20, 110, 0, 115); 
+            ctx.bezierCurveTo(20, 110, 50, 80, 35, 30);   
+            ctx.quadraticCurveTo(0, 10, -35, 30);         
+            ctx.fill();
+            ctx.strokeStyle = "#e6b0aa"; ctx.lineWidth = 2; ctx.stroke();
+
+            // Urethra
+            ctx.fillStyle = "#f5b7b1"; ctx.fillRect(-5, 115, 10, 30);
+
+            // Tumor
+            ctx.fillStyle = "#e67e22"; 
+            ctx.beginPath();
+            ctx.arc(15, 70, 8, 0, Math.PI*2); ctx.arc(20, 65, 6, 0, Math.PI*2); ctx.arc(18, 75, 6, 0, Math.PI*2); 
+            ctx.fill();
+            
+            // Labels for Anatomy - UPDATED with more details
+            ctx.fillStyle = "#2c3e50";
+            ctx.textAlign = "center";
+            
+            ctx.font = "bold 14px Varela Round";
+            ctx.fillText("מערכת השתן", 0, -120);
+            
+            ctx.font = "12px Varela Round";
+            ctx.fillText("כליות", 0, -80);
+            
+            // Lines to parts
+            ctx.strokeStyle = "rgba(44, 62, 80, 0.5)"; 
+            ctx.lineWidth = 1;
+            
+            // Bladder Label
+            ctx.beginPath(); ctx.moveTo(-60, 60); ctx.lineTo(-40, 60); ctx.stroke();
+            ctx.textAlign = "right"; ctx.fillText("שלפוחית השתן", -65, 63);
+
+            // Tumor Label
+            ctx.beginPath(); ctx.moveTo(40, 70); ctx.lineTo(70, 70); ctx.stroke();
+            ctx.textAlign = "left"; ctx.fillText("פוליפ", 75, 73);
+
+            ctx.restore();
+
+
+            // --- 2. Draw Cystoscope ---
+            const cx = width * 0.7; 
+            const cy = height * 0.65; 
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-Math.PI / 4); 
+            
+            ctx.scale(0.65, 0.65); 
+
+            // 1. Handle Body
+            ctx.fillStyle = "#2d3748";
+            ctx.fillRect(-20, -50, 40, 120);
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            for(let i=0; i<60; i+=8) ctx.fillRect(-20, -10+i, 40, 2);
+
+            // 2. Control Block
+            ctx.fillStyle = "#4a5568";
+            ctx.fillRect(-25, -90, 50, 40);
+
+            // 3. Eyepiece
+            ctx.fillStyle = "#1a202c";
+            ctx.beginPath();
+            ctx.moveTo(-15, 70); ctx.lineTo(15, 70);
+            ctx.lineTo(25, 90); ctx.lineTo(-25, 90);
+            ctx.closePath(); ctx.fill();
+
+            // 4. Shaft (Tube)
+            ctx.fillStyle = "#1a202c";
+            ctx.fillRect(-5, -300, 10, 210); 
+            ctx.fillStyle = "#4a5568";
+            ctx.fillRect(-3, -300, 6, 210); 
+
+            // 5. Tip & Loop
+            ctx.translate(0, -300);
+            
+            ctx.fillStyle = "#a0aec0";
+            ctx.fillRect(-6, -15, 12, 15);
+            
+            ctx.strokeStyle = "#f1c40f";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, -25, 10, 0, Math.PI, true);
+            ctx.stroke();
+
+            // Labels lines
+            ctx.strokeStyle = "#e74c3c";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+
+            ctx.beginPath(); ctx.moveTo(15, -25); ctx.lineTo(120, -25); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(120, 20); ctx.stroke();
+
+            ctx.restore();
+
+            // Labels Text
+            ctx.fillStyle = "#2c3e50";
+            ctx.font = "bold 11px Varela Round";
+            ctx.textAlign = "left"; 
+            
+            ctx.fillText("לולאת חיתוך חשמלית", cx - 60, cy - 200);
+            ctx.fillText("מצלמה וסיב אופטי", cx - 40, cy - 160);
+            
+            ctx.fillText("ידית אחיזה", cx - 60, cy + 50);
+            ctx.beginPath(); ctx.moveTo(cx - 50, cy + 40); ctx.lineTo(cx - 10, cy + 30); ctx.stroke();
+        }
+
+        function drawExternal() {
+            const input = isDemo ? simMouse : mouse;
+            ctx.fillStyle = "#eef"; 
+            ctx.fillRect(0,0,width,height);
+
+            const cx = width/2;
+            const legsY = height * 0.3;
+
+            // Patient
+            ctx.beginPath();
+            ctx.moveTo(cx - 150, 0);
+            ctx.quadraticCurveTo(cx - 150, legsY, cx - 100, legsY + 100); 
+            ctx.lineTo(cx - 50, legsY + 50); 
+            ctx.lineTo(cx + 50, legsY + 50); 
+            ctx.lineTo(cx + 100, legsY + 100); 
+            ctx.quadraticCurveTo(cx + 150, legsY, cx + 150, 0);
+            ctx.fillStyle = C_SKIN;
+            ctx.fill();
+            ctx.strokeStyle = C_SKIN_DARK;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Labels: Patient Pelvis
+            ctx.fillStyle = "#7f8c8d";
+            ctx.font = "bold 14px Varela Round";
+            ctx.textAlign = "center";
+            ctx.fillText("אגן המטופל", cx, legsY + 20);
+
+            // Meatus
+            const targetX = cx;
+            const targetY = legsY + 60;
+            ctx.beginPath();
+            ctx.arc(targetX, targetY, 15, 0, Math.PI*2);
+            ctx.fillStyle = "rgba(200, 100, 100, 0.3)";
+            ctx.fill();
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = "rgba(200, 100, 100, 0.5)";
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Label: Meatus
+            ctx.fillStyle = "#c0392b";
+            ctx.font = "bold 14px Varela Round";
+            ctx.fillText("פתח השופכה", targetX - 20, targetY + 35);
+
+            // --- STATIC HANDLE POSITION ---
+            const handleX = 100;
+            const handleY = height - 150;
+            const handleExitX = handleX + 35; 
+            const handleExitY = handleY - 35;
+
+            // Drag Logic
+            if(!isDemo && input.isDown) {
+                extScopeX += (input.x - extScopeX) * 0.1;
+                extScopeY += (input.y - extScopeY) * 0.1;
+            } else if (!isDemo) {
+                if(extProgress < 100) {
+                     extScopeX += ((handleExitX + 50) - extScopeX) * 0.05;
+                     extScopeY += ((handleExitY + 20) - extScopeY) * 0.05;
+                }
+            }
+
+            // --- DRAW COMPLEX STATIC HANDLE ---
+            ctx.save();
+            ctx.translate(handleX, handleY);
+            ctx.rotate(-Math.PI/4); 
+
+            // Light Guide
+            ctx.beginPath();
+            ctx.moveTo(10, 10); 
+            ctx.bezierCurveTo(40, 10, 40, 150, 10, 200); 
+            ctx.strokeStyle = "#1a202c";
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            // Eyepiece
+            ctx.fillStyle = "#1a202c"; 
+            ctx.beginPath();
+            ctx.moveTo(-12, 50); ctx.lineTo(12, 50); ctx.lineTo(18, 65); ctx.lineTo(-18, 65);
+            ctx.closePath(); ctx.fill();
+            
+            ctx.fillStyle = "#2d3748";
+            ctx.beginPath(); ctx.ellipse(0, 65, 18, 5, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#718096"; 
+            ctx.beginPath(); ctx.ellipse(5, 66, 4, 1.5, 0, 0, Math.PI*2); ctx.fill();
+
+            // Main Body
+            ctx.fillStyle = "#2d3748"; 
+            if (ctx.roundRect) {
+                ctx.beginPath(); ctx.roundRect(-15, -40, 30, 90, 4); ctx.fill();
+            } else {
+                ctx.fillRect(-15, -40, 30, 90);
+            }
+
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            for(let i=0; i<40; i+=6) {
+                ctx.fillRect(-15, i, 30, 2);
+            }
+
+            // Control Block
+            ctx.fillStyle = "#4a5568"; 
+            if (ctx.roundRect) {
+                ctx.beginPath(); ctx.roundRect(-18, -60, 36, 40, 4); ctx.fill();
+            } else {
+                ctx.fillRect(-18, -60, 36, 40);
+            }
+
+            // Light Post
+            ctx.fillStyle = "#a0aec0"; 
+            ctx.beginPath();
+            ctx.moveTo(18, 5); ctx.lineTo(28, 5); ctx.lineTo(28, 15); ctx.lineTo(18, 15);
+            ctx.fill();
+
+            // Lever
+            ctx.fillStyle = "#cbd5e0"; 
+            ctx.beginPath();
+            ctx.moveTo(-6, -40); ctx.lineTo(-6, -75); ctx.lineTo(6, -75); ctx.lineTo(6, -40);
+            ctx.fill();
+            ctx.fillStyle = "#2d3748"; 
+            ctx.beginPath(); ctx.arc(0, -75, 10, 0, Math.PI*2); ctx.fill(); 
+            ctx.fillStyle = "#718096"; 
+            ctx.beginPath(); ctx.arc(-3, -77, 3, 0, Math.PI*2); ctx.fill();
+
+            // Connector
+            ctx.fillStyle = "#a0aec0"; 
+            ctx.beginPath();
+            ctx.moveTo(-8, -60); ctx.lineTo(-5, -80); ctx.lineTo(5, -80); ctx.lineTo(8, -60);
+            ctx.fill();
+
+            ctx.restore();
+
+            // --- DRAW DYNAMIC TUBE ---
+            const cpX = (handleExitX + extScopeX) / 2;
+            const cpY = Math.max(handleExitY, extScopeY) + 60; 
+            
+            ctx.beginPath();
+            ctx.moveTo(handleExitX, handleExitY);
+            ctx.quadraticCurveTo(cpX, cpY, extScopeX, extScopeY);
+            ctx.strokeStyle = '#1a202c'; 
+            ctx.lineWidth = 7;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(handleExitX, handleExitY);
+            ctx.quadraticCurveTo(cpX, cpY, extScopeX, extScopeY);
+            ctx.strokeStyle = '#4a5568'; 
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // --- DRAW TIP ---
+            const angle = Math.atan2(extScopeY - cpY, extScopeX - cpX);
+
+            ctx.save();
+            ctx.translate(extScopeX, extScopeY);
+            ctx.rotate(angle); 
+
+            ctx.fillStyle = '#a0aec0'; 
+            ctx.fillRect(0, -5, 12, 10); 
+            ctx.fillStyle = '#1a202c'; 
+            ctx.fillRect(12, -5, 3, 10);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(60, -20); ctx.lineTo(60, 20); ctx.fill();
+
+            ctx.restore();
+
+            if(!isDemo) {
+                const dist = Math.hypot(extScopeX - targetX, extScopeY - targetY);
+                if(dist < 40) {
+                    extProgress += 2;
+                    if(extProgress > 50) setPhase('INTERNAL');
+                }
+            }
+        }
+
+        function drawInternal() {
+            const input = isDemo ? simMouse : mouse;
+            ctx.fillStyle = "#fcf0f0";
+            ctx.fillRect(0,0,width,height);
+            
+            const cx = width/2;
+            const topY = 100;
+
+            // Walls
+            ctx.beginPath();
+            ctx.moveTo(cx - 80, height);
+            ctx.quadraticCurveTo(cx - 80, height/2, cx - 30, topY); 
+            ctx.lineTo(cx + 30, topY);
+            ctx.quadraticCurveTo(cx + 80, height/2, cx + 80, height); 
+            ctx.fillStyle = C_TISSUE_LIGHT;
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = C_TISSUE_DARK;
+            ctx.stroke();
+            
+            // Labels: Urethra Walls - FIXED ORIENTATION
+            ctx.fillStyle = "rgba(100, 50, 50, 0.7)";
+            ctx.font = "14px Varela Round";
+            ctx.textAlign = "center";
+            
+            // Removed rotation, adjusted position to be horizontal near the wall
+            ctx.fillText("דופן השופכה", cx - 110, height/2);
+
+            // Hole
+            ctx.fillStyle = "#500";
+            ctx.beginPath();
+            ctx.arc(cx, topY, 30, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Label: Bladder Entry
+            ctx.fillStyle = "#500";
+            ctx.font = "bold 14px Varela Round";
+            ctx.fillText("הכניסה לשלפוחית", cx, topY - 40);
+
+            if(!isDemo && input.isDown) {
+                intScopeY += (input.y - intScopeY) * 0.15;
+                intScopeX += (input.x - intScopeX) * 0.15;
+            } else if (!isDemo && intScopeY === 0) {
+                intScopeY = height; intScopeX = cx;
+            }
+            
+            if(!isDemo) {
+                intScopeY = Math.max(100, Math.min(height, intScopeY));
+                intScopeX = Math.max(cx - 60, Math.min(cx + 60, intScopeX));
+            }
+
+            const cpX = cx + (intScopeX - cx) * 0.5;
+            const cpY = intScopeY + 100;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, height + 100);
+            ctx.quadraticCurveTo(cpX, cpY, intScopeX, intScopeY);
+            ctx.strokeStyle = '#2D3748'; 
+            ctx.lineWidth = 10; 
+            ctx.lineCap = 'round';
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(cx, height + 100);
+            ctx.quadraticCurveTo(cpX, cpY, intScopeX, intScopeY);
+            ctx.strokeStyle = '#4A5568';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            const dx = intScopeX - cpX;
+            const dy = intScopeY - cpY;
+            const angle = Math.atan2(dy, dx);
+
+            ctx.save();
+            ctx.translate(intScopeX, intScopeY);
+            ctx.rotate(angle + Math.PI/2); 
+
+            ctx.fillStyle = '#718096'; 
+            if(ctx.roundRect) {
+                ctx.beginPath(); ctx.roundRect(-5, -12, 10, 12, 2); ctx.fill();
+            } else {
+                ctx.fillRect(-5, -12, 10, 12);
+            }
+
+            ctx.fillStyle = '#1A202C';
+            ctx.beginPath(); ctx.arc(0, -8, 2.5, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#FEFCBF'; 
+            ctx.beginPath(); ctx.arc(0, -3, 1.5, 0, Math.PI*2); ctx.fill();
+
+            ctx.restore();
+
+            ctx.fillStyle = "rgba(255,255,200,0.4)";
+            ctx.beginPath();
+            ctx.arc(intScopeX, intScopeY, 30, 0, Math.PI*2);
+            ctx.fill();
+
+            if(!isDemo && intScopeY < 120 && Math.abs(intScopeX - cx) < 30) {
+                intProgress++;
+                if(intProgress > 30) setPhase('RESECTION');
+            }
+        }
+
+        function drawResection() {
+            const input = isDemo ? simMouse : mouse;
+            const cx = width/2;
+            const cy = height/2;
+            const r = Math.min(width, height) * 0.45;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI*2);
+            ctx.clip();
+
+            let grad = ctx.createRadialGradient(cx, cy, 50, cx, cy, r);
+            grad.addColorStop(0, '#ffebeb');
+            grad.addColorStop(1, '#ffcdcd');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0,0,width,height);
+
+            // --- DRAW BLADDER WALL (Above Tumor) ---
+            const wallY = cy - 60; 
+            
+            ctx.beginPath();
+            ctx.moveTo(cx - r, wallY); 
+            ctx.quadraticCurveTo(cx, wallY + 15, cx + r, wallY);
+            ctx.lineTo(cx + r, 0); 
+            ctx.lineTo(cx - r, 0);
+            ctx.closePath();
+            
+            let wallGrad = ctx.createLinearGradient(cx, 0, cx, wallY + 20);
+            wallGrad.addColorStop(0, '#ef9a9a'); 
+            wallGrad.addColorStop(1, '#ffcdd2'); 
+            ctx.fillStyle = wallGrad;
+            ctx.fill();
+
+            ctx.strokeStyle = "rgba(180, 50, 50, 0.3)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx - 80, wallY - 40);
+            ctx.quadraticCurveTo(cx - 20, wallY + 10, cx + 60, wallY - 50);
+            ctx.stroke();
+            
+            // Label: Bladder Wall
+            ctx.fillStyle = "rgba(100, 20, 20, 0.7)";
+            ctx.font = "bold 16px Varela Round";
+            ctx.textAlign = "center";
+            ctx.fillText("דופן השלפוחית", cx, wallY - 20);
+
+            // DETERMINE HEATING STATE
+            let isHeatingNow = isDemo ? simMouse.isDown : (mouse.isDown || isSpacebarHeating);
+
+            // Heat Logic
+            if(isHeatingNow && toolReady) {
+                loopHeat = Math.min(loopHeat + 2, 100);
+            } else {
+                loopHeat = Math.max(loopHeat - 5, 0);
+            }
+            heatFill.style.width = loopHeat + "%";
+
+            // --- CHECK 50% EVENT ---
+            if (!isDemo && !halfwayEventTriggered && particlesRemoved >= totalParticles / 2) {
+                halfwayEventTriggered = true;
+                visibility = 0.1; // Force poor visibility
+                
+                // Show visual cue for button
+                const btn = document.getElementById('btn-coag');
+                if(btn) {
+                    btn.style.transform = "scale(1.2)";
+                    setTimeout(() => btn.style.transform = "scale(1)", 500);
+                }
+            }
+
+            let lowestY = 0;
+            tumorParticles.forEach(p => { if(p.active && p.y > lowestY) lowestY = p.y; });
+
+            let remaining = 0;
+            tumorParticles.forEach(p => {
+                if(p.active) {
+                    remaining++;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+                    ctx.fillStyle = C_TUMOR;
+                    ctx.fill();
+                    ctx.strokeStyle = C_TUMOR_DARK;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    if (p.y >= lowestY - 10) {
+                        ctx.strokeStyle = "rgba(255,255,255,0.6)";
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                }
+            });
+            
+            // Label: Tumor (Only if still exists) - LINE REMOVED
+            if (remaining > 5) {
+                ctx.fillStyle = "#d35400";
+                ctx.font = "bold 14px Varela Round";
+                ctx.textAlign = "center";
+                // Moved from cx + 50 to cx + 120 to be clearly next to it
+                ctx.fillText("הפוליפ", cx + 120, cy);
+            }
+
+            // --- DRAW FLOATING CHIPS (DEBRIS) ---
+            // Visuals removed as per request, but logic remains if needed
+            floatingChips.forEach((chip, index) => {
+                chip.x += chip.vx;
+            });
+
+            const instBaseX = cx;
+            const instBaseY = height + 50;
+            
+            if (!toolReady) {
+                if(input.y > height * 0.85) toolReady = true;
+                ctx.fillStyle = "rgba(0,0,0,0.5)";
+                ctx.fillRect(0,0,width,height);
+                ctx.fillStyle = "white";
+                ctx.font = "20px Varela Round";
+                ctx.fillText("רד למטה להפעלת הכלי", cx - 80, height - 100);
+            }
+
+            let tipX = cx, tipY = height + 20;
+            
+            if(toolReady) {
+                let mx = input.x, my = input.y;
+                let angle = Math.atan2(my - instBaseY, mx - instBaseX);
+                let dist = Math.min(Math.hypot(mx-instBaseX, my-instBaseY), r*1.8);
+                tipX = instBaseX + Math.cos(angle)*dist;
+                tipY = instBaseY + Math.sin(angle)*dist;
+
+                ctx.beginPath();
+                ctx.moveTo(instBaseX, instBaseY);
+                ctx.lineTo(tipX, tipY);
+                ctx.lineWidth = 8;
+                ctx.strokeStyle = "#2D3748"; 
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(tipX, tipY);
+                ctx.rotate(angle + Math.PI/2);
+                
+                let wireColor = `rgb(${200 + loopHeat*0.55}, ${200 + loopHeat*0.55}, ${100 - loopHeat})`; 
+                let isHotEnough = loopHeat > 80;
+                let isPulling = isDemo ? true : (mouse.y - lastMouseY) > 0.5;
+                
+                let isVisibilityGood = visibility > 0.4;
+
+                let isCutting = isHeatingNow && isPulling && isHotEnough && isVisibilityGood;
+
+                ctx.shadowColor = isHotEnough ? "orange" : "transparent";
+                ctx.shadowBlur = isHotEnough ? 20 : 0;
+                ctx.lineWidth = isCutting ? 4 : 3;
+                ctx.strokeStyle = wireColor;
+                
+                if (isHotEnough && !isVisibilityGood) {
+                    ctx.strokeStyle = "#555"; 
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.beginPath();
+                ctx.arc(0, -20, 15, 0, Math.PI, true);
+                ctx.stroke();
+
+                if(isCutting) {
+                    ctx.strokeStyle = "#fff";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(-15,-20); ctx.lineTo(15,-20); ctx.stroke();
+                }
+                ctx.restore();
+
+                if(isCutting) {
+                    tumorParticles.forEach(p => {
+                        if(p.active && Math.hypot(p.x - tipX, p.y - tipY) < 35) {
+                            if(p.y >= lowestY - 15) {
+                                p.active = false;
+                                particlesRemoved++; 
+                                
+                                // Significantly reduced visibility decay (was 0.08, now 0.01)
+                                if(!isDemo) visibility = Math.max(0.1, visibility - 0.01); 
+                                
+                                // Removed floatingChips spawning logic
+
+                                for(let k=0; k<5; k++) {
+                                    bloodParticles.push({
+                                        x: p.x, y: p.y, 
+                                        vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+                                        life: 1.0
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            ctx.restore(); 
+
+            bloodParticles.forEach(b => {
+                b.x += b.vx; b.y += b.vy; b.life -= 0.02;
+                if(b.life > 0) {
+                    ctx.fillStyle = `rgba(200, 50, 50, ${b.life * 0.5})`;
+                    ctx.beginPath(); ctx.arc(b.x, b.y, 5, 0, Math.PI*2); ctx.fill();
+                }
+            });
+
+            // Removed floatingChips drawing loop
+
+            if(visibility < 1.0) {
+                let opacity = 1.0 - visibility;
+                ctx.fillStyle = `rgba(200, 100, 100, ${opacity * 0.8})`; 
+                ctx.fillRect(0,0,width,height);
+                
+                if (visibility <= 0.4) {
+                    ctx.fillStyle = `rgba(100, 20, 20, 0.5)`;
+                    ctx.fillRect(0,0,width,height);
+                    
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "bold 22px Varela Round";
+                    ctx.textAlign = "center";
+                    ctx.shadowColor = "black";
+                    ctx.shadowBlur = 4;
+                    ctx.fillText("!הראות לקויה", cx, cy - 20);
+                    ctx.font = "18px Varela Round";
+                    ctx.fillText("לחץ על כפתור השטיפה", cx, cy + 20);
+                    ctx.shadowBlur = 0;
+                }
+                else if(opacity > 0.6) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${opacity * 0.3})`;
+                    ctx.fillRect(0,0,width,height);
+                }
+            }
+
+            let gradV = ctx.createRadialGradient(cx, cy, r*0.9, cx, cy, r+20);
+            gradV.addColorStop(0, 'rgba(0,0,0,0)');
+            gradV.addColorStop(1, 'rgba(0,0,0,1)');
+            ctx.fillStyle = gradV;
+            ctx.fillRect(0,0,width,height);
+
+            if(!isDemo && remaining === 0) {
+                    setTimeout(() => setPhase('POSTOP'), 1000);
+            }
+        }
+
+        // Loop
+        function loop() {
+            ctx.clearRect(0,0,width,height);
+            
+            if (gameState === 'SHOW_INSTRUMENT') {
+                drawInstrumentShowcase();
+            }
+            else {
+                if(isDemo) updateDemoAI();
+
+                if(gameState.includes('EXTERNAL')) drawExternal();
+                else if(gameState.includes('INTERNAL')) drawInternal();
+                else if(gameState.includes('RESECTION')) drawResection();
+            }
+
+            if(gameState !== 'INTERMISSION' && gameState !== 'INTRO') {
+                requestAnimationFrame(loop);
+            }
+        }
+
+        resize(); // Initial call
+    </script>
+</body>
+</html>
